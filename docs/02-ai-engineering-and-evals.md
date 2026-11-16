@@ -4,13 +4,14 @@ Building reliable agentic systems requires treating prompt engineering, tool rou
 
 ---
 
-## 1. Zero-Hallucination Guardrails
+## 1. Agentic RAG & Zero-Hallucination Guardrails
 
 LLMs are probabilistic text generators; they must not be trusted with arithmetic, inventory availability, or pricing:
 
+* **Agentic RAG (Cloudflare Vectorize + Query Cache):** Rather than running blind retrieval on every message, the ReAct agent autonomously decides whether a turn requires catalog retrieval. When semantic matching is needed (e.g., problem-solving or symptom queries), it generates 768-dimensional embeddings (with in-memory `RETRIEVAL_QUERY` caching) and queries **Cloudflare Vectorize**, then hydrates verified tenant records from D1.
+* **Vector Bypass for Exact Queries:** When a user requests deterministic sorting or filtering (e.g., *"cheapest external filter"* or *"under \$50"*), the system bypasses semantic embedding search (`embedCallCount == 0`) and executes indexed SQL queries directly.
 * **Deterministic Domain Engine:** Tank volume, glass thickness tolerances, substrate slope volume, filtration turnover ($L/h$), and lighting requirements ($lm/L$) are computed deterministically in code—never by the LLM.
 * **Catalog Grounding:** Every recommended product is cross-checked against the tenant's D1 inventory (`in_stock = 1` and matching `shop_domain`).
-* **Vector Bypass for Exact Queries:** When a user requests deterministic sorting or filtering (e.g., *"cheapest external filter"* or *"under \$50"*), the system bypasses semantic embedding search (`embedCallCount == 0`) and executes indexed SQL queries directly.
 
 ---
 

@@ -4,7 +4,7 @@
 
 [![Architecture](https://img.shields.io/badge/Pattern-Native_ReAct_Agent-0ea5e9?style=flat)](#agentic-core)
 [![Runtime](https://img.shields.io/badge/Edge-Cloudflare_V8_Workers-F38020?style=flat&logo=cloudflare)](#system-architecture)
-[![Database](https://img.shields.io/badge/Data-D1_SQLite_+_R2_Storage-blue?style=flat)](#system-architecture)
+[![Database](https://img.shields.io/badge/Data-D1_SQLite_+_Vectorize_+_R2-blue?style=flat)](#system-architecture)
 [![Testing](https://img.shields.io/badge/Evals-3--Layer_AI_Test_Pyramid-10b981?style=flat)](#ai-testing-pyramid)
 [![Frontend](https://img.shields.io/badge/Widget-~20KB_gzip_Shadow_DOM-673AB7?style=flat)](#embeddable-storefront-widget)
 
@@ -15,6 +15,7 @@
 ## Why This Architecture Matters (Key Engineering Highlights)
 
 * **Framework-less Native ReAct on the Edge (`0ms` Cold-Start):** Orchestrates multi-turn `functionCall` $\rightarrow$ deterministic tool execution $\rightarrow$ `functionResponse` $\rightarrow$ streaming synthesis using pure Web Standards (`fetch`, `TransformStream`, `ReadableStream`) without LangChain/LlamaIndex bloat.
+* **Agentic RAG (Cloudflare Vectorize + SQL Bypass):** The agent autonomously decides when to run 768-dim semantic vector search (`Cloudflare Vectorize`), when to bypass embeddings for deterministic SQL sorting/filtering (`embedCallCount == 0`), and when to skip retrieval entirely.
 * **Zero-Hallucination Agentic Guardrails:** The agent never guesses prices, stock, or physical tank calculations. All numerical specs come from deterministic domain tools, and product recommendations are constrained by structured JSON schemas (`responseSchema`) against verified tenant inventory.
 * **Transparent Agentic UX via SSE:** Streams ephemeral `status` events (e.g., *calculating specs*, *searching catalog*, *analyzing image*) over Server-Sent Events while keeping intermediate tool noise out of persistent conversation history.
 * **3-Layer AI Agent Testing Pyramid:** Avoids the expensive "inverted eval pyramid" by separating `$0` deterministic unit/security checks, mocked scripted-trajectory + Vector Bypass tests, and live DeepEval (`ToolCorrectnessMetric`, `FaithfulnessMetric`, `G-Eval`) + adversarial red-teaming.
@@ -31,6 +32,7 @@ flowchart TD
     subgraph Edge["Cloudflare Global Edge Network"]
         Worker["Edge Agent Worker (Native ReAct + SSE)"]
         D1[("Cloudflare D1 (Multi-Tenant SQLite)\nshops | products | sessions | finops")]
+        Vectorize[("Cloudflare Vectorize\n(768-dim Semantic Index)")]
         R2[("Cloudflare R2\nUser Tank Images")]
         Gateway["Cloudflare AI Gateway\n(Caching, Rate Limit, Logging)"]
     end
@@ -43,11 +45,12 @@ flowchart TD
 
     Widget -->|"1. POST /chat (SSE Stream)"| Worker
     Worker -->|"2. Tenant & Catalog Lookups (<2ms)"| D1
-    Worker -->|"3. Image Persistence / Read"| R2
-    Worker -->|"4. ReAct Tools & Synthesis"| Gateway
-    Gateway -->|"5. Generation"| LLM
-    Worker -.->|"6. Async Trace (ctx.waitUntil)"| Langfuse
-    Widget -->|"7. Cart Mutation"| Shopify
+    Worker -->|"3. Agentic RAG (Semantic Search)"| Vectorize
+    Worker -->|"4. Image Persistence / Read"| R2
+    Worker -->|"5. ReAct Tools & Synthesis"| Gateway
+    Gateway -->|"6. Generation"| LLM
+    Worker -.->|"7. Async Trace (ctx.waitUntil)"| Langfuse
+    Widget -->|"8. Cart Mutation"| Shopify
 ```
 
 ---
