@@ -1,4 +1,4 @@
-# 03 — Multi-Tenant Security, Shopify Integration & FinOps
+# 04 — Multi-Tenant Security, Shopify Integration & FinOps
 
 AquaBot operates as a shared multi-tenant SaaS platform at the edge. Security boundaries and unit-economics controls are enforced at the infrastructure and query layers.
 

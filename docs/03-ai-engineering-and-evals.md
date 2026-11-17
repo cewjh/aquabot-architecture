@@ -1,4 +1,4 @@
-# 02 — AI Engineering, Guardrails & 3-Layer Testing Pyramid
+# 03 — AI Engineering, Guardrails & 3-Layer Testing Pyramid
 
 Building reliable agentic systems requires treating prompt engineering, tool routing, and LLM evaluation with the same rigor as backend APIs. AquaBot enforces a **Zero-Hallucination Policy** backed by a **3-Layer AI Agent Testing Pyramid**.
 

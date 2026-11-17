@@ -60,12 +60,14 @@ flowchart TD
 | Document | Focus Area |
 | :--- | :--- |
 | [01 — Agentic Architecture & Streaming](docs/01-agentic-architecture.md) | 3-stage Native ReAct loop, `thoughtSignature` integrity, multimodal vision routing, resilient `ctx.waitUntil` persistence |
-| [02 — AI Engineering & 3-Layer Evals](docs/02-ai-engineering-and-evals.md) | Zero-hallucination design, Vector Bypass vs. RAG, Scripted-Trajectory tests, DeepEval / G-Eval & red-teaming |
-| [03 — Multi-Tenant Security & FinOps](docs/03-security-and-finops.md) | Tenant isolation (`shop_domain`), fail-closed HMAC webhooks, R2 CSP headers, zero-cost incremental ingestion |
+| [02 — Agentic RAG & Hybrid Retrieval](docs/02-agentic-rag-and-retrieval.md) | Autonomous retrieval routing, 768-dim Cloudflare Vectorize, SQL Vector Bypass, multi-tenant D1 hydration |
+| [03 — AI Engineering & 3-Layer Evals](docs/03-ai-engineering-and-evals.md) | Zero-hallucination design, Scripted-Trajectory tests, DeepEval / G-Eval & red-teaming |
+| [04 — Multi-Tenant Security & FinOps](docs/04-security-and-finops.md) | Tenant isolation (`shop_domain`), fail-closed HMAC webhooks, R2 CSP headers, zero-cost incremental ingestion |
 | [ADR-001](docs/adr/ADR-001-fastapi-to-cloudflare-edge.md) | Why we migrated from Python/FastAPI to Cloudflare V8 Edge Workers |
 | [ADR-002](docs/adr/ADR-002-frameworkless-native-react-agent.md) | Why we built a framework-less Native ReAct loop instead of using agent frameworks |
 | [ADR-003](docs/adr/ADR-003-shadow-dom-preact-widget.md) | Why we chose Preact + Shadow DOM (`~20 KB` gzip) over an `<iframe>` |
 | [ADR-004](docs/adr/ADR-004-three-layer-agent-testing-pyramid.md) | How we structured a 3-layer AI testing pyramid to control eval cost & flakiness |
+| [ADR-005](docs/adr/ADR-005-hybrid-agentic-rag-with-sql-bypass.md) | Why we chose Hybrid Agentic RAG + SQL Vector Bypass over unconditional vector search |
 
 ---
 
