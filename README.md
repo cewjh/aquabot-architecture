@@ -8,7 +8,7 @@
 [![Testing](https://img.shields.io/badge/Evals-3--Layer_AI_Test_Pyramid-10b981?style=flat)](#ai-testing-pyramid)
 [![Frontend](https://img.shields.io/badge/Widget-~20KB_gzip_Shadow_DOM-673AB7?style=flat)](#embeddable-storefront-widget)
 
-**AquaBot** is a multimodal, multi-tenant **agentic AI sales assistant** built for specialized e-commerce stores (aquascaping & aquarium hardware). Instead of wrapping a generic LLM in a chat box, AquaBot runs a **framework-less Native ReAct Agent Loop** directly on **Cloudflare V8 Edge Workers**, combining deterministic engineering calculations, real-time inventory grounding, and vision analysis with sub-2ms edge database lookups.
+**AquaBot** is a multimodal, multi-tenant **agentic AI sales assistant** built for specialized e-commerce stores (aquascaping & aquarium hardware). Instead of wrapping a generic LLM in a chat box, AquaBot runs a **framework-less Native ReAct Agent Loop** directly on **Cloudflare V8 Edge Workers**, combining **Agentic RAG** (hybrid semantic vector search + SQL bypass), deterministic engineering calculations, real-time inventory grounding, and vision analysis with sub-2ms edge database lookups.
 
 ---
 
