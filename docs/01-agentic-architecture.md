@@ -46,20 +46,23 @@ sequenceDiagram
 
 ### Key Architectural Properties
 1. **Single-Brain Grounded Context:** Retiring the legacy secondary JSON-selection LLM eliminated double inference latency, context split-brain errors, and category mismatches. The same model that inspects user photos and reasons over calculations also inspects retrieved SKUs and invokes verified cart mutations directly.
-2. **Parallel Read / Serialized Write Dispatch:** When a turn requires multiple independent catalog lookups (e.g., substrate + canister filter + heater + lighting), the model emits parallel `functionCall` parts in a single turn. The Tool Registry runs `mode: "read"` tools concurrently via `Promise.all` and `mode: "write"` tools strictly sequentially to preserve cart consistency. Round-robin merging ensures single-product suggestion shelves represent every queried category evenly.
-3. **Bounded Execution & Loop Circuit Breaker:**
+2. **Parallel Read / Serialized Write Dispatch & Schema-Level Thought Slots:** When a turn requires multiple independent catalog lookups (e.g., substrate + canister filter + heater + lighting), the model emits parallel `functionCall` parts in a single turn. The Tool Registry runs `mode: "read"` tools concurrently via `Promise.all` and `mode: "write"` tools strictly sequentially to preserve cart consistency. Round-robin merging ensures single-product suggestion shelves represent every queried category evenly. Placing a leading `intent` field inside search tool parameter schemas acts as a **Schema-Level Thought Slot**, anchoring assumptions and user intent prior to emitting query terms.
+3. **Selective State-Driven `toolConfig` Enforcement:** Rather than imposing global `ANY` or `VALIDATED` function-calling constraints across every step, mode enforcement follows schema complexity and loop state:
+   * Immediately after deterministic physics calculation completes (while catalog search and cart mutation have not yet run), the next step enters `mode: "ANY"` constrained to the flat-schema `search_catalog` read tool—eliminating pre-tool text collapse without risking JSON/delimiter corruption.
+   * Initial routing, nested `ARRAY<OBJECT>` cart mutation schemas (`update_cart`, protected by schema-level action `enum` constraints), and final synthesis run in native `mode: "AUTO"`, preventing constrained-decoding FSM corruption across nested array boundaries.
+4. **Bounded Execution & Loop Circuit Breaker:**
    * Enforces dual ceilings: `maxSteps = 8` and a per-turn FinOps spend cap.
    * Tracks `(toolName, stableStringify(args))` signatures per turn; repeating an identical signature beyond threshold (`> 2`) injects a `loop_detected` feedback payload instead of failing or looping endlessly.
    * If a ceiling is reached without a final answer, the loop performs a tool-free (`tools: disabled`) synthesis pass so the user still receives a coherent response.
-4. **Zero-Extra-Cost Contextual `<quick_replies>`:** Instead of serving static Turkish buttons or paying for a second LLM call to generate follow-up chips, the agent appends `<quick_replies>[...]</quick_replies>` at the end of its synthesis in the user's exact conversation language. A stateful sliding-tail SSE stream filter withholds potential partial tags at chunk boundaries so raw XML/JSON tags never flicker in the UI, then delivers the parsed array in the `final` event.
+5. **Zero-Extra-Cost Contextual `<quick_replies>`:** Instead of serving static Turkish buttons or paying for a second LLM call to generate follow-up chips, the agent appends `<quick_replies>[...]</quick_replies>` at the end of its synthesis in the user's exact conversation language. A stateful sliding-tail SSE stream filter withholds potential partial tags at chunk boundaries so raw XML/JSON tags never flicker in the UI, then delivers the parsed array in the `final` event.
 
 ---
 
-## 2. Multi-Turn Protocol Integrity (`thoughtSignature` & Legacy Normalization)
+## 2. Multi-Turn Protocol Integrity (`thoughtSignature` & Canonical Trajectory)
 
 Modern reasoning models attach encrypted/opaque `thoughtSignature` tokens inside `functionCall` response parts.
 * **Verbatim `rawParts` Replay:** During a multi-step turn, the Edge Worker appends `res.rawParts` verbatim alongside 1-to-1 `functionResponse` entries so tool-use stability and reasoning alignment never degrade.
-* **History Reconstruction:** Persisted conversation turns containing prior bundles or single-product recommendations are reconstructed into canonical `functionCall` $\rightarrow$ `functionResponse` $\rightarrow$ `model text` sequences (with automatic normalization of legacy tool identifiers into current active declarations), keeping exact product and variant IDs in reach for follow-up cart edits.
+* **Canonical `Read -> Write -> Synthesize` History Reconstruction:** Persisted conversation turns containing prior bundles or single-product recommendations are reconstructed into canonical `search_catalog` (`functionCall` $\rightarrow$ `functionResponse`) $\rightarrow$ `update_cart` $\rightarrow$ `model text` causal sequences (with automatic normalization of legacy tool identifiers into current active declarations), keeping exact product/variant IDs and read-before-write demonstrations intact for follow-up cart edits.
 * Ephemeral UI `status` events remain strictly transient and are never persisted into `chat_sessions`.
 
 ---
