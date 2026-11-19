@@ -14,11 +14,11 @@
 
 ## Why This Architecture Matters (Key Engineering Highlights)
 
-* **Single-Brain Bounded ReAct Loop (`0ms` Cold-Start):** Orchestrates multi-step reasoning through a generic **Read/Write Tool Registry** using pure Web Standards (`fetch`, `TransformStream`, `ReadableStream`). Features **selective state-driven `toolConfig` transitions**, schema-level `intent` thought slots, and canonical `Read -> Write -> Synthesize` history reconstruction. Read-only tool calls (e.g., multi-category catalog searches) execute concurrently via `Promise.all`, while state-mutating calls execute serially—guarded by a `(tool, normalizedArgs)` loop circuit breaker and dual step/budget ceilings with tool-free graceful wrap-up.
+* **Single-Brain Bounded ReAct Loop (`0ms` Cold-Start):** Orchestrates multi-step reasoning through a domain-agnostic **Read/Write Tool Registry** using pure Web Standards (`fetch`, `TransformStream`, `ReadableStream`). Features a **5-tool static ACI** (`parametersJsonSchema` + KV-cache prefix stability), schema-level `intent` thought slots, fail-loud self-correcting cart validation, and canonical `Read -> Write -> Synthesize` history reconstruction. Read-only tool calls execute concurrently via `Promise.all`, while state-mutating calls execute serially—guarded by a `(tool, normalizedArgs)` loop circuit breaker and dual step/budget ceilings with tool-free graceful wrap-up.
 * **Vectorize Single Source of Truth + SQL Vector Bypass:** 768-dimensional embeddings reside exclusively in **Cloudflare Vectorize** (keeping only a 16-character content hash in D1), eliminating database bloat and enabling batch deletion (`20` IDs/batch) on stock-outs. Semantic queries leverage model-driven expansion (`search_terms`) fused via Reciprocal Rank Fusion (RRF), while deterministic sorting/price queries bypass embeddings (`embedCallCount == 0`).
-* **Zero-Hallucination & Intent-Driven Cognitive Guardrails:** Numerical domain specs come from deterministic engineering code, prompts enforce semantic intent boundaries and a causal state-reality contract (zero pre-tool prose / proactive execution on delegated selections), cart mutations are validated against live tenant SKUs, and stores with empty online catalogs strictly report zero availability.
+* **Zero-Hallucination & Intent-Driven Cognitive Guardrails:** Numerical domain specs come from deterministic engineering code, prompts enforce semantic intent boundaries and a causal state-reality contract (zero pre-tool prose / proactive execution on delegated selections), cart mutations enforce live SKU/variant validity loudly (`invalid_variant_id` + `available_variants`), and stores with empty online catalogs strictly report zero availability.
 * **Streaming UX & `$0` Contextual Quick Replies:** Streams ephemeral `status` events during tool execution and extracts trailing `<quick_replies>` chips in the user's detected language via a sliding-tail SSE stream filter at zero extra LLM cost.
-* **3-Layer AI Agent Testing Pyramid:** Separates `$0` deterministic unit/security/streaming checks, Layer 2 scripted-trajectory + selective `toolConfig` + Loop Detector + Vector Bypass + Playwright Shadow DOM E2E checks, and Layer 3 live edge DeepEval (32 scenarios covering `ContextualRelevancyMetric`, `FaithfulnessMetric`, `G-Eval`, and delegated-selection cart flows) + adversarial red-teaming.
+* **3-Layer AI Agent Testing Pyramid:** Separates `$0` deterministic unit/security/streaming checks, Layer 2 scripted-trajectory + static-prefix invariance + fail-loud self-correction + Loop Detector + Vector Bypass + Playwright Shadow DOM E2E checks, and Layer 3 bounded-parallel live edge DeepEval (32 scenarios covering `ContextualRelevancyMetric`, `FaithfulnessMetric`, `G-Eval`, and delegated-selection cart flows) + adversarial red-teaming.
 * **Modular White-Label Shadow DOM Widget (`~22 KB` gzip):** Embeds via two HTML lines with full CSS isolation, dynamic `color-mix()` theming, domain-scoped session isolation, and a storefront-agnostic **Cart Adapter** that surfaces real storefront errors instead of faking cart success.
 
 ---
@@ -59,16 +59,16 @@ flowchart TD
 
 | Document | Focus Area |
 | :--- | :--- |
-| [01 — Agentic Architecture & Streaming](docs/01-agentic-architecture.md) | Bounded single-brain ReAct loop, selective `toolConfig`, schema thought slots, loop detector, canonical trajectory replay, `<quick_replies>` |
+| [01 — Agentic Architecture & Streaming](docs/01-agentic-architecture.md) | Bounded single-brain ReAct loop, static 5-tool ACI (`parametersJsonSchema`), schema thought slots, fail-loud self-correction, canonical replay |
 | [02 — Agentic RAG & Hybrid Retrieval](docs/02-agentic-rag-and-retrieval.md) | Model-driven `search_terms`, RRF hybrid retrieval, Vectorize Single Source of Truth, batch out-of-stock purge, SQL Vector Bypass |
-| [03 — AI Engineering & 3-Layer Evals](docs/03-ai-engineering-and-evals.md) | Zero-hallucination & intent-driven guardrails, trajectory/Vectorize/Playwright E2E tests, 32-scenario DeepEval / G-Eval & rate-limit-hardened eval judge |
+| [03 — AI Engineering & 3-Layer Evals](docs/03-ai-engineering-and-evals.md) | Zero-hallucination & intent-driven guardrails, trajectory/Vectorize/Playwright E2E tests, 32-scenario DeepEval & bounded-parallel eval queue |
 | [04 — Multi-Tenant Security & FinOps](docs/04-security-and-finops.md) | Strict tenant isolation, cross-domain session boundaries, fail-closed HMAC webhooks, D1 storage slimming, SQL funnel revenue |
 | [ADR-001](docs/adr/ADR-001-fastapi-to-cloudflare-edge.md) | Why we migrated from Python/FastAPI to Cloudflare V8 Edge Workers |
 | [ADR-002](docs/adr/ADR-002-frameworkless-native-react-agent.md) | Framework-less Native ReAct loop instead of heavy agent frameworks *(Amended v2)* |
 | [ADR-003](docs/adr/ADR-003-shadow-dom-preact-widget.md) | Why we chose Preact + Shadow DOM over an `<iframe>` *(with white-label theming & Cart Adapter)* |
 | [ADR-004](docs/adr/ADR-004-three-layer-agent-testing-pyramid.md) | How we structured a 3-layer AI testing pyramid to control eval cost & flakiness |
 | [ADR-005](docs/adr/ADR-005-hybrid-agentic-rag-with-sql-bypass.md) | Hybrid Agentic RAG + SQL Vector Bypass *(Amended v2)* |
-| [ADR-006](docs/adr/ADR-006-single-brain-parallel-react-loop.md) | Single-brain parallel ReAct loop, Tool Registry, schema thought slots & selective `toolConfig` enforcement |
+| [ADR-006](docs/adr/ADR-006-single-brain-parallel-react-loop.md) | Single-brain 5-tool static ACI, KV-cache prefix stability, `parametersJsonSchema` & fail-loud self-correction |
 | [ADR-007](docs/adr/ADR-007-vectorize-single-source-of-truth.md) | Eliminating D1 embedding bloat with Vectorize Single Source of Truth & strict tenant isolation |
 
 ---
