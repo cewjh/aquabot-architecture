@@ -1,49 +1,44 @@
 # 03 — AI Engineering, Guardrails & 3-Layer Testing Pyramid
 
-Building reliable agentic systems requires treating prompt engineering, tool routing, and LLM evaluation with the same rigor as backend APIs. AquaBot enforces a **Zero-Hallucination Policy** backed by a **3-Layer AI Agent Testing Pyramid**.
+Building reliable agentic systems requires separating deterministic correctness from semantic judgment. AquaBot enforces a **Zero-Hallucination Policy** verified by a **3-Layer AI Agent Testing Pyramid** plus headless browser E2E testing.
 
 ---
 
-## 1. Agentic RAG & Zero-Hallucination Guardrails
+## 1. Zero-Hallucination Agentic Guardrails
 
-LLMs are probabilistic text generators; they must not be trusted with arithmetic, inventory availability, or pricing:
-
-* **Agentic RAG (Cloudflare Vectorize + Query Cache):** Rather than running blind retrieval on every message, the ReAct agent autonomously decides whether a turn requires catalog retrieval. When semantic matching is needed (e.g., problem-solving or symptom queries), it generates 768-dimensional embeddings (with in-memory `RETRIEVAL_QUERY` caching) and queries **Cloudflare Vectorize**, then hydrates verified tenant records from D1.
-* **Vector Bypass for Exact Queries:** When a user requests deterministic sorting or filtering (e.g., *"cheapest external filter"* or *"under \$50"*), the system bypasses semantic embedding search (`embedCallCount == 0`) and executes indexed SQL queries directly.
-* **Deterministic Domain Engine:** Tank volume, glass thickness tolerances, substrate slope volume, filtration turnover ($L/h$), and lighting requirements ($lm/L$) are computed deterministically in code—never by the LLM.
-* **Catalog Grounding:** Every recommended product is cross-checked against the tenant's D1 inventory (`in_stock = 1` and matching `shop_domain`).
+1. **Deterministic Domain Physics:** Tank volumes, glass thickness tolerances, substrate slope targets, circulation flow (`L/h`), heater wattage, and lumen targets are calculated deterministically in code—never guessed by an LLM.
+2. **Verified Multi-Variant Grounding:** Both tool outputs and RAG `retrieval_context` expose explicit variant-level pricing (`available_variants`), preventing mismatches between base prices and selected capacity/wattage variants during multi-variant synthesis and evaluation.
+3. **Strict Empty-Catalog & Language Guardrails:** Stores with zero online products never fall back to a demo catalog; the model receives an explicit empty-catalog tool status and reports unavailability honestly. Prompt instructions and tool responses enforce strict response/quick-reply language alignment with the user's latest message.
+4. **No Silent Category Substitution:** If a cart mutation references an invalid or out-of-stock SKU ID, the cart builder rejects it explicitly (`not_found_ops`) so the ReAct loop self-corrects rather than silently swapping an unrelated item category.
 
 ---
 
 ## 2. The 3-Layer AI Agent Testing Pyramid
 
-AquaBot explicitly avoids the **"Inverted Pyramid" anti-pattern** (relying on slow, expensive LLM-as-a-Judge tests for rules that deterministic unit tests can verify in milliseconds).
+AquaBot explicitly avoids the **"Inverted Pyramid" anti-pattern** (using expensive, flaky LLM judges for checks that deterministic code or mocked trajectories verify in milliseconds):
 
 ```text
           /\
          /  \        Layer 3: Live Edge DeepEval, G-Eval & Red-Teaming
-        /----\       (Real LLM + Real Edge: RAG faithfulness, tone, adversarial)
+        /----\       (Real Edge + Gemini: parallel carts, multilingual chips, RAG faithfulness)
        /      \
-      /--------\     Layer 2: Scripted-Trajectory & Mock Integration
-     /          \    (Mock D1 + Mock LLM Gateway: tool routing, Vector Bypass, cart)
+      /--------\     Layer 2: Scripted-Trajectory, Loop/RAG Lifecycle & Playwright E2E
+     /          \    (Mock D1/Vectorize/Gateway + real Chromium Shadow DOM E2E)
     /------------\
-   /              \  Layer 1: Deterministic Unit, Contract & Security
-  ------------------ ($0 cost, ms: math formulas, UTF-8 SSE, HMAC, SSRF, auth)
+   /              \  Layer 1: Deterministic Unit, Streaming & Security
+  ------------------ ($0 cost, ms: formulas, sliding-tail <quick_replies>, HMAC, SSRF, auth)
 ```
 
-### Layer 1 — Deterministic Unit, Contract & Security (`$0` Cost, Milliseconds)
-* Verifies mathematical formulas, UTF-8 multi-byte SSE chunk boundaries, `thoughtSignature` preservation, Pydantic v2 input schemas, `HMAC-SHA256` verification, SSRF guards, and rate limits.
+### Layer 1 — Deterministic Unit, Streaming & Security (`$0` Cost, Milliseconds)
+* Verifies engineering math formulas, multi-byte UTF-8 SSE splitting, `thoughtSignature` preservation across parallel `functionCalls[]`, defensive sliding-tail `<quick_replies>` filtering (including partial chunks and inline `<` math expressions), fail-closed `X-Admin-Key`, `HMAC-SHA256` webhook validation, hex color validation, SSRF guards, and R2 `sandbox` CSP headers.
 
-### Layer 2 — Scripted-Trajectory & Mock Integration (Pre-Deploy Gate)
-* Runs against mocked D1/R2 state and a local HTTP LLM gateway stub.
-* Asserts **behavioral trajectories** rather than brittle exact-string matches:
-  * Did the agent select the right tool?
-  * Was `embedCallCount == 0` enforced on `sort_by` queries?
-  * Were out-of-stock or cross-tenant items excluded?
-  * Did `update_cart` mutate session state cleanly?
+### Layer 2 — Scripted-Trajectory, Data/RAG Lifecycle & Playwright E2E (Pre-Deploy Gate)
+* **Agent Loop & Trajectory:** Tests parallel `search_catalog` + sequential `update_cart`, round-robin `single_products` merging, legacy history normalization, `(tool, args)` Loop Detector (`seenCount > 2`), `maxSteps` tool-free graceful wrap-up, and respect for explicit negative WhatsApp opt-outs.
+* **Vectorize & Tenant Lifecycle:** Verifies `1 -> 0` stock batch Vectorize purge & hash reset, `0 -> 1` re-embedding, strict empty custom tenant isolation (`0` leakage from `default`), `raw_payload` upsert preservation, single-query `/shops` aggregation (no `N+1`), and SQL-aggregated funnel revenue.
+* **Playwright Chromium Widget E2E:** Launches the real compiled Preact Shadow DOM bundle in Chromium to verify streaming status pills, abort-on-reset, mobile layout overflow bounds, dynamic white-label CSS variables (`primary_color`, `welcome_message`), domain-isolated `localStorage` sessions, real HTTP `422` cart error handling (never faking cart success), and non-Shopify event-only dispatch safety.
 
-### Layer 3 — DeepEval / G-Eval & Red-Teaming (Quality Gate)
-* Evaluates real end-to-end behavior using **DeepEval**:
-  * **RAG-enabled turns** (catalog search): `ContextualRelevancyMetric`, `FaithfulnessMetric`, `ToolCorrectnessMetric`, and `GEval` with `RETRIEVAL_CONTEXT`.
-  * **Non-RAG turns** (calculations, cart updates, consultation, red-teaming): `ToolCorrectnessMetric` + `GEval` (`INPUT`, `ACTUAL_OUTPUT` only—no `RETRIEVAL_CONTEXT`).
-  * **Adversarial Red-Teaming:** Prompt injection attempts, system prompt extraction, and out-of-domain queries (e.g., uploading non-aquarium images).
+### Layer 3 — Live Edge DeepEval / G-Eval & Red-Teaming (Post-Deploy Gate)
+* Evaluates end-to-end live Edge behavior using **DeepEval** (`SingleTurnParams`):
+  * **RAG-enabled turns:** `ContextualRelevancyMetric`, `FaithfulnessMetric`, and `GEval` (`INPUT`, `ACTUAL_OUTPUT`, `RETRIEVAL_CONTEXT`) + `tools_called` checks across semantic symptoms, price sorting, multi-turn revisions, variant-accurate parallel carts, and TR/EN/DE multilingual `<quick_replies>`.
+  * **Non-RAG turns:** `tools_called` + `GEval` (`INPUT`, `ACTUAL_OUTPUT` without `RETRIEVAL_CONTEXT`) covering negative WhatsApp preferences, empty-tenant honesty, direct WhatsApp handoff, non-domain image rejection, and adversarial prompt-injection red-teaming.
+* **Rate-Limit-Resilient Eval Judge:** The live evaluation adapter isolates async execution behind hard HTTP/thread timeouts (preventing event-loop deadlocks) and applies inter-call pacing plus server `retryDelay`-aware backoff for strict free-tier API quotas.

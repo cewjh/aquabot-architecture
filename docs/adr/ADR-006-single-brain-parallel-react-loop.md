@@ -1,0 +1,16 @@
+# ADR-006: Single-Brain Parallel ReAct Loop & Zero-Cost Streaming Synthesis
+
+* **Status:** Accepted
+* **Context:** The earlier 3-stage architecture used a primary model call for tool routing, a secondary hidden non-streamed `responseSchema` call to pick bundle SKUs from dumped catalog lists, and a third streamed synthesis pass. While safe against hallucinated SKUs, dumping large catalogs into a stateless secondary JSON selector added redundant latency/token burn, severed conversational vision reasoning from product selection, and relied on fragile keyword heuristics when intents varied. Meanwhile, static quick-reply chips drifted out of sync with the conversation language.
+* **Decision:**
+  1. **Single-Brain Tool Registry:** Consolidate orchestration into one **Bounded Native ReAct Loop** backed by a declarative `read` / `write` Tool Registry (`calculate_aquarium_specs`, `search_catalog`, `update_cart`, `handoff_to_whatsapp`), removing the hidden secondary selection LLM and deterministic intent-override regexes.
+  2. **Parallel Reads & Serialized Writes:** Run independent read-only tool calls (such as multi-category catalog searches) concurrently via `Promise.all` within a single model step, execute cart/handoff mutations sequentially, and interleave multi-search suggestions round-robin.
+  3. **Bounded Safety & Graceful Wrap-Up:** Guard execution with a hard step cap (`maxSteps = 8`), per-turn spend ceiling, and a `(toolName, normalizedArgs)` loop circuit breaker (`seenCount > 2`), falling back to a final tool-free (`tools: null`) synthesis pass if a ceiling is reached.
+  4. **Sliding-Tail `<quick_replies>` Streaming:** Generate 2–3 language-matched follow-up chips at the tail of the single synthesis stream and strip/parse them cleanly in flight via a sliding-tail SSE filter (`$0` extra LLM call).
+* **Alternatives Considered:**
+  1. *Keep Dual-LLM Non-Streamed JSON Selection:* Guarantees schema structure, but doubles LLM round-trips on setup turns and duplicates prompt/catalog tokens.
+  2. *Unbounded Loop Without Circuit Breaker:* Simpler implementation, but exposes Edge request timeouts and FinOps quotas to repetitive tool-call loops.
+  3. *Separate Post-Turn LLM Call for Quick Replies:* Adds extra TTFB delay and API quota pressure on free/tiered models.
+* **Consequences & Trade-offs:**
+  * **Pros:** Richer conversational continuity (vision + variant reasoning in one context), lower bundle latency via parallel `search_catalog`, resilient loop termination, and multilingual dynamic follow-up chips at `$0` additional inference cost.
+  * **Cons:** Requires rigorous backend SKU/stock verification inside `update_cart`, variant-aware `retrieval_context` formatting, and careful prompt/tool-note design so catalog product language does not override user reply language.

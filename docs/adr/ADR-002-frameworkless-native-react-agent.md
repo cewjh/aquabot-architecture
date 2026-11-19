@@ -7,5 +7,8 @@
   1. *JS/TS Agent Frameworks:* Abstract away raw model payloads, making it harder to preserve provider-specific fields like `thoughtSignature` across multi-turn tool calls and adding unnecessary bundle weight.
   2. *Single-shot Prompting without Tools:* Fast, but prone to arithmetic and pricing hallucinations.
 * **Consequences & Trade-offs:**
-  * **Pros:** Full control over 3-stage execution (Tool Decision $\rightarrow$ Non-streamed Structured JSON Selection $\rightarrow$ Streamed Synthesis), exact `thoughtSignature` preservation in `rawParts`, ephemeral UI `status` events, and minimal bundle overhead.
-  * **Cons:** Requires maintaining custom SSE chunk parsers and multi-byte UTF-8 boundary handling, mitigated by Layer 1 deterministic streaming unit tests.
+  * **Pros:** Full control over multi-step ReAct execution, exact `thoughtSignature` preservation in `rawParts`, ephemeral UI `status` events, and minimal bundle overhead.
+  * **Cons:** Requires maintaining custom SSE chunk parsers, stream filters, and multi-byte UTF-8 boundary handling, mitigated by Layer 1 deterministic streaming unit tests.
+
+## Amendment (v2 — Single-Brain Parallel Bounded ReAct Loop)
+* **Superseding Detail:** The initial 3-stage pipeline (which delegated bundle item picking to a separate non-streamed `responseSchema` JSON call) has been superseded by a **single-brain Bounded ReAct Loop** (`maxSteps`, per-turn budget cap, `(tool, args)` loop circuit breaker, tool-free wrap-up) backed by a generic Read/Write **Tool Registry** with parallel read execution and single-point sliding-tail SSE streaming. See [ADR-006](ADR-006-single-brain-parallel-react-loop.md).
