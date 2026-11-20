@@ -1,0 +1,13 @@
+{
+  "name": "commerce-copilot-architecture-references",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zero-dependency Web Standards reference modules and unit tests for Commerce Copilot Edge AI architecture.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

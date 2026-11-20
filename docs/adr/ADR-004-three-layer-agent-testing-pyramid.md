@@ -1,14 +1,14 @@
 # ADR-004: Three-Layer AI Agent Testing Pyramid
 
 * **Status:** Accepted
-* **Context:** Relying solely on LLM-as-a-Judge tests for every code change creates an "inverted testing pyramid"—slow, non-deterministic, and expensive CI runs—while unit-testing only helper functions misses tool-routing regressions and hallucinations.
-* **Decision:** Enforce a **3-Layer AI Testing Pyramid**:
-  1. **Layer 1 (`$0`, ms):** Deterministic unit, math, UTF-8 streaming, and security/HMAC tests.
-  2. **Layer 2 (Pre-Deploy Gate):** Scripted-Trajectory integration tests against mocked D1/R2 and a stubbed LLM gateway to verify tool selection, `sort_by` Vector Bypass (`embedCallCount == 0`), and cart state mutations.
-  3. **Layer 3 (Quality Gate):** Live DeepEval (`ToolCorrectnessMetric`, `FaithfulnessMetric`, `ContextualRelevancyMetric`, `GEval`) and adversarial red-teaming, strictly separating RAG-enabled vs. non-RAG test cases.
+* **Context:** Relying solely on LLM-as-a-Judge evaluations for every code change creates an "inverted testing pyramid"—slow, non-deterministic, and costly CI runs—while unit-testing only helper functions misses tool-routing regressions, KV-cache prefix drift, and cart-mutation hallucinations.
+* **Decision:** Enforce a **3-Layer AI Agent Testing Pyramid**:
+  1. **Layer 1 (`$0`, ms):** Deterministic unit, math, UTF-8 streaming, SSRF, Web Crypto auth, and connector parsing tests.
+  2. **Layer 2 (Pre-Deploy Gate):** Scripted-Trajectory integration tests against mocked D1/Vectorize/R2 and a stubbed LLM gateway verifying parallel tool selection, `sort_by` Vector Bypass (`embedCallCount == 0`), fail-loud variant self-correction, and headless Chromium Playwright Shadow DOM E2E behavior.
+  3. **Layer 3 (Post-Deploy Quality Gate):** Live Edge DeepEval (`ToolCorrectnessMetric`, `FaithfulnessMetric`, `ContextualRelevancyMetric`, `GEval`) and adversarial prompt-injection red-teaming coordinated by a file-locked bounded-parallel rate queue, strictly separating RAG-enabled vs. non-RAG test suites.
 * **Alternatives Considered:**
-  1. *End-to-End LLM Evals Only:* High API cost, flaky CI, slow feedback loop.
-  2. *Manual QA Only:* Unsafe for multi-turn tool trajectories and prompt regressions.
+  1. *End-to-End LLM Evals Only:* High API cost, flaky CI, slow developer feedback loop.
+  2. *Manual QA Only:* Unsafe for multi-turn tool trajectories, variant boundaries, and prompt regressions.
 * **Consequences & Trade-offs:**
-  * **Pros:** Fast developer feedback loop, deterministic regression guards for agent trajectories, and targeted LLM eval spend only where semantic judgment is genuinely needed.
-  * **Cons:** Requires maintaining mock gateway fixtures alongside real DeepEval scenarios.
+  * **Pros:** Instant `$0` regression feedback in CI, deterministic verification of agent trajectories and security boundaries, and targeted LLM eval spend only where semantic judgment is genuinely required.
+  * **Cons:** Requires maintaining deterministic mock gateway fixtures alongside live DeepEval benchmark scenarios.

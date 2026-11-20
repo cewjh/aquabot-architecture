@@ -1,0 +1,67 @@
+name: Architecture & Reference Suite CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  reference-tests:
+    name: Run Zero-Dependency Reference Unit & Trajectory Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: references
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run reference test suite
+        run: npm test
+
+  markdown-link-check:
+    name: Verify Internal Markdown Links & Image Paths
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate relative markdown links
+        run: |
+          node -e '
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const files = [];
+          function walk(dir) {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              if (entry.name === ".git" || entry.name === "node_modules") continue;
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) walk(full);
+              else if (entry.name.endsWith(".md")) files.push(full);
+            }
+          }
+          walk(".");
+          let missing = 0;
+          const linkRe = /\[[^\]]*\]\(([^)#\s]+)(?:#[^)]*)?\)/g;
+          for (const file of files) {
+            const text = fs.readFileSync(file, "utf8");
+            let m;
+            while ((m = linkRe.exec(text)) !== null) {
+              const target = m[1];
+              if (/^(https?:|mailto:|#)/i.test(target)) continue;
+              const resolved = path.resolve(path.dirname(file), target);
+              if (!fs.existsSync(resolved)) {
+                console.error(`BROKEN LINK in ${file} -> ${target}`);
+                missing++;
+              }
+            }
+          }
+          if (missing > 0) process.exit(1);
+          console.log(`Verified relative links across ${files.length} Markdown files.`);
+          '

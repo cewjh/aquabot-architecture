@@ -1,14 +1,11 @@
 # ADR-002: Framework-less Native ReAct Agent Loop Instead of Agent Frameworks
 
 * **Status:** Accepted
-* **Context:** Many LLM applications adopt heavy orchestration frameworks (e.g., LangChain, LlamaIndex) for tool calling and memory. On Cloudflare V8 Workers, bundle size, memory footprint, and fine-grained control over streaming SSE protocols are critical constraints.
-* **Decision:** Implement a **framework-less Native ReAct Agent Loop** directly on top of the LLM's native `functionCall` / `functionResponse` and `responseSchema` APIs using Web-Standard `TransformStream`s.
+* **Context:** Heavy LLM orchestration frameworks add substantial bundle weight, opaque prompt mutations, and abstraction layers that obscure provider-specific tool-calling payloads (such as reasoning `thoughtSignature` tokens) and degrade fine-grained SSE streaming control inside Cloudflare V8 isolates.
+* **Decision:** Implement a **framework-less, provider-agnostic Bounded Native ReAct Agent Loop** directly on top of the model's native `functionCall` / `functionResponse` APIs using Web-Standard `TransformStream` and `ReadableStream`, backed by a declarative Read/Write **Tool Registry**.
 * **Alternatives Considered:**
-  1. *JS/TS Agent Frameworks:* Abstract away raw model payloads, making it harder to preserve provider-specific fields like `thoughtSignature` across multi-turn tool calls and adding unnecessary bundle weight.
-  2. *Single-shot Prompting without Tools:* Fast, but prone to arithmetic and pricing hallucinations.
+  1. *JS/TS Agent Frameworks (LangChain / LlamaIndex JS):* Accelerate initial prototyping, but strip or alter raw `thoughtSignature` parts during multi-step tool replay and inflate Worker bundle size.
+  2. *Multi-Stage Chained JSON Selectors:* Calling a secondary non-streamed LLM solely to pick SKUs doubles round-trip latency, duplicates prompt/catalog tokens, and breaks conversational continuity.
 * **Consequences & Trade-offs:**
-  * **Pros:** Full control over multi-step ReAct execution, exact `thoughtSignature` preservation in `rawParts`, ephemeral UI `status` events, and minimal bundle overhead.
-  * **Cons:** Requires maintaining custom SSE chunk parsers, stream filters, and multi-byte UTF-8 boundary handling, mitigated by Layer 1 deterministic streaming unit tests.
-
-## Amendment (v2 — Single-Brain Parallel Bounded ReAct Loop)
-* **Superseding Detail:** The initial 3-stage pipeline (which delegated bundle item picking to a separate non-streamed `responseSchema` JSON call) has been superseded by a **single-brain Bounded ReAct Loop** (`maxSteps`, per-turn budget cap, `(tool, args)` loop circuit breaker, tool-free wrap-up) backed by a generic Read/Write **Tool Registry** with parallel read execution and single-point sliding-tail SSE streaming. See [ADR-006](ADR-006-single-brain-parallel-react-loop.md).
+  * **Pros:** Full control over `rawParts` replay, parallel `Promise.all` read dispatch vs. serialized writes, exact token/budget accounting per turn, and minimal edge bundle footprint.
+  * **Cons:** Requires maintaining custom SSE chunk decoders, sliding-tail stream filters, and multi-byte UTF-8 boundary handling—mitigated by deterministic Layer 1 streaming unit tests (`references/tests/streaming_and_connectors.test.mjs`).
